@@ -49,6 +49,36 @@ namespace ICSharpCode.Decompiler
 		}
 
 		public EnumValueDisplayMode? EnumValueDisplayMode { get; set; }
+
+		readonly HashSet<IMember> hiddenMembers = new HashSet<IMember>();
+
+		public bool AreAllMembersHidden(ITypeDefinition type)
+		{
+			foreach (var nestedType in type.NestedTypes)
+			{
+				if (!AreAllMembersHidden(nestedType))
+					return false;
+			}
+
+			foreach (var member in type.Members)
+			{
+				if (!IsMemberHidden(member))
+					return false;
+			}
+
+			return true;
+		}
+
+		public bool IsMemberHidden(IMember member)
+		{
+			return hiddenMembers.Contains(member);
+		}
+
+
+		public void HideMember(IMember member)
+		{
+			hiddenMembers.Add(member);
+		}
 	}
 
 	enum EnumValueDisplayMode

@@ -142,6 +142,7 @@ namespace ICSharpCode.Decompiler.IL.ControlFlow
 			}
 
 			context.Step("Replacing body with MoveNext() body", function);
+			HideStateMachineMembers(function.MoveNextMethod);
 			function.IsIterator = true;
 			function.StateMachineCompiledWithMono = isCompiledWithMono;
 			var oldBody = function.Body;
@@ -230,6 +231,53 @@ namespace ICSharpCode.Decompiler.IL.ControlFlow
 			// Re-run control flow simplification over the newly constructed set of gotos,
 			// and inlining because TranslateFieldsToLocalAccess() might have opened up new inlining opportunities.
 			function.RunTransforms(CSharpDecompiler.EarlyILTransforms(), context);
+		}
+
+		private void HideStateMachineMembers(IMethod moveNextMethod)
+		{
+			var declaringTypeDefinition = moveNextMethod.DeclaringTypeDefinition;
+
+			context.DecompileRun.HideMember(currentField);
+			context.DecompileRun.HideMember(stateField);
+			context.DecompileRun.HideMember(moveNextMethod);
+
+			foreach (var member in declaringTypeDefinition.Members)
+			{
+				if (member.Name.StartsWith("System.Collections.Generic.IEnumera"))
+				{
+					if (member.Name.EndsWith(".Current"))
+					{
+						context.DecompileRun.HideMember(member);
+					}
+					else if (member.Name.EndsWith(".GetEnumerator"))
+					{
+						context.DecompileRun.HideMember(member);
+					}
+				}
+				else if (member.Name.StartsWith("System.Collections.IEnumera"))
+				{
+					if (member.Name.EndsWith(".Current"))
+					{
+						context.DecompileRun.HideMember(member);
+					}
+					else if (member.Name.EndsWith(".GetEnumerator"))
+					{
+						context.DecompileRun.HideMember(member);
+					}
+					else if (member.Name.EndsWith(".Reset"))
+					{
+						context.DecompileRun.HideMember(member);
+					}
+				}
+				else if (member.Name == "System.IDisposable.Dispose")
+				{
+					context.DecompileRun.HideMember(member);
+				}
+				else if (member.SymbolKind == SymbolKind.Constructor)
+				{
+					context.DecompileRun.HideMember(member);
+				}
+			}
 		}
 		#endregion
 
@@ -1076,6 +1124,7 @@ namespace ICSharpCode.Decompiler.IL.ControlFlow
 				}
 				function.ReleaseRef(); // make body reusable outside of function
 				decompiledFinallyMethods.Add(method, (newState, function));
+				context.DecompileRun.HideMember(method);
 			}
 		}
 		#endregion
@@ -1296,6 +1345,7 @@ namespace ICSharpCode.Decompiler.IL.ControlFlow
 					var variables = finallyFunction.Variables.ToArray();
 					finallyFunction.Variables.Clear();
 					function.Variables.AddRange(variables);
+					context.DecompileRun.HideMember(finallyMethod);
 				}
 			}
 			context.StepEndGroup(keepIfEmpty: true);
